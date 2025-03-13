@@ -254,10 +254,10 @@ def update_location():
                     lat = lat_match.group(1).strip()
                     lon = lon_match.group(1).strip()
                     
-                    msg += f"<b>Latitude:</b> <code>{lat}</code>\n"
-                    msg += f"<b>Longitude:</b> <code>{lon}</code>\n\n"
-                    msg += f"<a href='https://www.google.com/maps?q={lat},{lon}'>View on Google Maps</a>\n"
-                    msg += f"<a href='https://earth.google.com/web/search/{lat},{lon}'>View on Google Earth</a>"
+                    msg += f"*Latitude:* `{lat}`\n"
+                    msg += f"*Longitude:* `{lon}`\n\n"
+                    msg += f"[View on Google Maps](https://www.google.com/maps?q={lat},{lon})"
+                    msg += f"[View on Google Earth](https://earth.google.com/web/search/{lat},{lon})"
                 
                 # Add footer if present
                 if 'footer' in embed and 'text' in embed['footer']:
